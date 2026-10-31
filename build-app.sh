@@ -1,42 +1,76 @@
 #!/bin/zsh
-# Builds OnAir for Mac.app (ad-hoc signed) and the ngmic CLI into ./dist
+# Builds "MicDeck.app" and the ngmic CLI into ./dist
+#
+#   ./build-app.sh              local build: native arch, ad-hoc signed, sandboxed
+#   ./build-app.sh --appstore   Mac App Store build: universal, distribution-signed, dist/MicDeck.pkg
+#
+# --appstore needs:
+#   TEAM_ID                  your 10-character Apple Developer Team ID
+#   PROVISIONING_PROFILE     path to the Mac App Store provisioning profile for com.jonathanfielding.micdeck
+# and optionally:
+#   APP_SIGN_IDENTITY        default "Apple Distribution"
+#   INSTALLER_SIGN_IDENTITY  default "3rd Party Mac Developer Installer"
+#
+# Both modes take MARKETING_VERSION (default 1.0.0) and BUILD_NUMBER (default: commit count).
 set -euo pipefail
 cd "$(dirname "$0")"
 
-swift build -c release --product OnAir
-swift build -c release --product ngmic
-BIN=$(swift build -c release --show-bin-path)
+MODE=dev
+[[ "${1:-}" == "--appstore" ]] && MODE=appstore
 
-APP="dist/OnAir for Mac.app"
+BUNDLE_ID=com.jonathanfielding.micdeck
+MARKETING_VERSION=${MARKETING_VERSION:-1.0.0}
+BUILD_NUMBER=${BUILD_NUMBER:-$(git rev-list --count HEAD 2>/dev/null || echo 1)}
+
+if [[ $MODE == appstore ]]; then
+    : "${TEAM_ID:?set TEAM_ID to your Apple Developer Team ID}"
+    : "${PROVISIONING_PROFILE:?set PROVISIONING_PROFILE to the Mac App Store .provisionprofile}"
+    [[ -f "$PROVISIONING_PROFILE" ]] || { echo "No such file: $PROVISIONING_PROFILE" >&2; exit 1; }
+    APP_SIGN_IDENTITY=${APP_SIGN_IDENTITY:-Apple Distribution}
+    INSTALLER_SIGN_IDENTITY=${INSTALLER_SIGN_IDENTITY:-3rd Party Mac Developer Installer}
+    ARCH_FLAGS=(--arch arm64 --arch x86_64)   # macOS 15 still runs on Intel Macs
+else
+    ARCH_FLAGS=()
+fi
+
+swift build -c release $ARCH_FLAGS --product MicDeck
+swift build -c release $ARCH_FLAGS --product ngmic
+BIN=$(swift build -c release $ARCH_FLAGS --show-bin-path)
+
+APP="dist/MicDeck.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 [ -f Resources/AppIcon.icns ] || { swift Tools/make-icon.swift && iconutil -c icns Resources/AppIcon.iconset -o Resources/AppIcon.icns; }
-cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-cp "$BIN/OnAir" "$APP/Contents/MacOS/OnAir"
+cp Resources/AppIcon.icns Resources/PrivacyInfo.xcprivacy "$APP/Contents/Resources/"
+cp "$BIN/MicDeck" "$APP/Contents/MacOS/MicDeck"
 cp "$BIN/ngmic" dist/ngmic
 
-cat > "$APP/Contents/Info.plist" <<'PLIST'
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-  <key>CFBundleName</key><string>OnAir for Mac</string>
-  <key>CFBundleDisplayName</key><string>OnAir for Mac</string>
-  <key>CFBundleIdentifier</key><string>local.onair-mac</string>
-  <key>CFBundleExecutable</key><string>OnAir</string>
-  <key>CFBundleIconFile</key><string>AppIcon</string>
-  <key>CFBundlePackageType</key><string>APPL</string>
-  <key>CFBundleShortVersionString</key><string>0.1.0</string>
-  <key>CFBundleVersion</key><string>1</string>
-  <key>LSMinimumSystemVersion</key><string>15.0</string>
-  <key>LSUIElement</key><true/>
-  <key>NSHighResolutionCapable</key><true/>
-  <key>NSMicrophoneUsageDescription</key><string>Shows your microphone's live input level in the mixer.</string>
-</dict>
-</plist>
-PLIST
+PLIST="$APP/Contents/Info.plist"
+cp Resources/Info.plist "$PLIST"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" \
+    -c "Set :CFBundleShortVersionString $MARKETING_VERSION" \
+    -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
 
-# Hardened runtime: no DYLD_* injection into a process that holds the Microphone grant.
-codesign --force --sign - --options runtime --entitlements Resources/OnAir.entitlements "$APP"
-codesign --force --sign - --options runtime dist/ngmic
-echo "Built: $APP and dist/ngmic"
+if [[ $MODE == dev ]]; then
+    # Hardened runtime: no DYLD_* injection into a process that holds the Microphone grant.
+    codesign --force --sign - --options runtime --entitlements Resources/MicDeck.entitlements "$APP"
+    codesign --force --sign - --options runtime dist/ngmic
+    echo "Built: $APP ($MARKETING_VERSION build $BUILD_NUMBER) and dist/ngmic"
+    exit 0
+fi
+
+# Store signing: the profile is embedded and the entitlements must name the same app ID and team.
+cp "$PROVISIONING_PROFILE" "$APP/Contents/embedded.provisionprofile"
+ENTITLEMENTS=$(mktemp -t micdeck-entitlements).plist
+cp Resources/MicDeck.entitlements "$ENTITLEMENTS"
+/usr/libexec/PlistBuddy -c "Add :com.apple.application-identifier string $TEAM_ID.$BUNDLE_ID" \
+    -c "Add :com.apple.developer.team-identifier string $TEAM_ID" "$ENTITLEMENTS"
+
+codesign --force --timestamp --options runtime --entitlements "$ENTITLEMENTS" --sign "$APP_SIGN_IDENTITY" "$APP"
+rm -f "$ENTITLEMENTS"
+codesign --verify --strict --deep --verbose=2 "$APP"
+
+PKG=dist/MicDeck.pkg
+rm -f "$PKG"
+productbuild --component "$APP" /Applications --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
+echo "Built: $PKG ($MARKETING_VERSION build $BUILD_NUMBER). Upload it with Transporter or 'xcrun altool --upload-package'."

@@ -72,7 +72,9 @@ public final class HIDMicManager: @unchecked Sendable {
 
     public init() {}
 
-    public func start(runLoop: CFRunLoop = CFRunLoopGetMain()) {
+    /// Returns the result of opening the HID manager; a sandbox or permission problem shows up here.
+    @discardableResult
+    public func start(runLoop: CFRunLoop = CFRunLoopGetMain()) -> IOReturn {
         let match: [String: Any] = [
             kIOHIDVendorIDKey: Int(DeviceCatalog.vendorID),
             kIOHIDPrimaryUsagePageKey: Int(DeviceCatalog.controlUsagePage),
@@ -89,7 +91,7 @@ public final class HIDMicManager: @unchecked Sendable {
             me.onChange?(me.mics)
         }, ctx)
         IOHIDManagerScheduleWithRunLoop(manager, runLoop, CFRunLoopMode.defaultMode.rawValue)
-        IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
+        return IOHIDManagerOpen(manager, IOOptionBits(kIOHIDOptionsTypeNone))
     }
 
     private func added(_ device: IOHIDDevice) {

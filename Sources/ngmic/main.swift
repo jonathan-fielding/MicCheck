@@ -10,7 +10,7 @@
 //   ngmic raw <cmd> <value>         send [0x77, cmd, value] (hex or decimal)
 //   ngmic led <top> [bottom] [--save] [--force]
 //                                   QuadCast S colours (hex, e.g. ff0000); streams until Ctrl-C.
-//                                   Refuses while OnAir runs unless --force.
+//                                   Refuses while MicDeck runs unless --force.
 //   ngmic led off                       explains how lighting goes back to the mic's own colours
 
 import AppKit
@@ -40,7 +40,7 @@ if verb == "led" {
     if args[1] == "off" {
         // ngmic streams only while it runs; another process's stream can't be stopped from here.
         print("Nothing to stop: the mic shows its own colours once nothing streams to it.")
-        print("If OnAir is controlling the lights, switch lighting off from its menu bar item.")
+        print("If MicDeck is controlling the lights, switch lighting off from its menu bar item.")
         exit(0)
     }
     guard let top = LEDColor(hex: args[1]) else { usage() }
@@ -50,13 +50,13 @@ if verb == "led" {
         bottom = b
     }
     // Two processes streaming to the lighting interface interleave packets and garble the lights.
-    // Matched by bundle ID (the built app) or executable name (`swift run OnAir`).
-    let onAirRunning = NSWorkspace.shared.runningApplications.contains {
-        $0.bundleIdentifier == "local.onair-mac" || $0.executableURL?.lastPathComponent == "OnAir"
+    // Matched by bundle ID (the built app) or executable name (`swift run MicDeck`).
+    let micDeckRunning = NSWorkspace.shared.runningApplications.contains {
+        $0.bundleIdentifier == "com.jonathanfielding.micdeck" || $0.executableURL?.lastPathComponent == "MicDeck"
     }
-    if onAirRunning && !args.contains("--force") {
-        print("OnAir is running and may be streaming to the lights; two streams garble them.")
-        print("Quit OnAir first, or pass --force if its lighting is switched off.")
+    if micDeckRunning && !args.contains("--force") {
+        print("MicDeck is running and may be streaming to the lights; two streams garble them.")
+        print("Quit MicDeck first, or pass --force if its lighting is switched off.")
         exit(1)
     }
     guard let transport = LightingTransportFinder.find() else {

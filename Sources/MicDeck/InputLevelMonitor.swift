@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreAudio
 import Foundation
+import os
 
 /// Live input meter for the selected mic. Runs only while the settings window is
 /// open, so macOS's orange "microphone in use" indicator isn't shown all the time.
@@ -21,9 +22,10 @@ final class InputLevelMonitor: ObservableObject {
     private let ioQueue = DispatchQueue(label: "InputLevelMonitor.io")
 
     func start(deviceID: AudioDeviceID?) {
-        guard let deviceID else { stop(); return }
+        guard let deviceID else { stop(); unavailableReason = nil; return }
         if procID != nil, self.deviceID == deviceID { return }
         stop()
+        unavailableReason = nil   // a reason from the previous device no longer applies
         self.deviceID = deviceID
 
         let status = AVCaptureDevice.authorizationStatus(for: .audio)
@@ -40,7 +42,7 @@ final class InputLevelMonitor: ObservableObject {
                 }
             }
         default:
-            unavailableReason = "Allow OnAir in System Settings › Privacy & Security › Microphone to see levels"
+            unavailableReason = "Allow MicDeck in System Settings › Privacy & Security › Microphone to see levels"
         }
     }
 
@@ -129,28 +131,11 @@ final class InputLevelMonitor: ObservableObject {
     }
 }
 
-/// Appends to ~/Library/Logs/OnAir.log (unified-log access isn't always available).
+/// Diagnostics go to the unified log: `log stream --predicate 'subsystem == "com.jonathanfielding.micdeck"'`.
 enum DebugLog {
-    private static let url = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent("Library/Logs/OnAir.log")
-    private static let queue = DispatchQueue(label: "DebugLog")
-    nonisolated(unsafe) private static let formatter = ISO8601DateFormatter()   // only used on `queue`
-    private static let maxSize = 256 * 1024
+    static let logger = Logger(subsystem: "com.jonathanfielding.micdeck", category: "app")
 
     static func write(_ message: String) {
-        let date = Date()
-        queue.async {
-            let line = "\(formatter.string(from: date)) \(message)\n"
-            // Start over rather than grow without bound.
-            if let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int, size > maxSize {
-                try? FileManager.default.removeItem(at: url)
-            }
-            guard let data = line.data(using: .utf8) else { return }
-            if let h = try? FileHandle(forWritingTo: url) {
-                h.seekToEndOfFile(); h.write(data); try? h.close()
-            } else {
-                try? data.write(to: url)
-            }
-        }
+        logger.debug("\(message, privacy: .public)")
     }
 }

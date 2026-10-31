@@ -1,5 +1,6 @@
 import AppKit
 import MicKit
+import os
 import ServiceManagement
 import SwiftUI
 
@@ -19,7 +20,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 }
 
 @main
-struct OnAirApp: App {
+struct MicDeckApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var controller = MicController()
 
@@ -33,7 +34,7 @@ struct OnAirApp: App {
     }()
 
     var body: some Scene {
-        Window("OnAir for Mac", id: "main") {
+        Window("MicDeck", id: "main") {
             ContentView()
                 .environmentObject(controller)
                 .frame(minWidth: 760, minHeight: 560)
@@ -99,7 +100,7 @@ struct MenuBarContent: View {
         do {
             if on { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
         } catch {
-            NSLog("Open at Login failed: %@", "\(error)")
+            DebugLog.logger.error("Open at Login failed: \(error, privacy: .public)")
         }
         openAtLogin = SMAppService.mainApp.status == .enabled
         if SMAppService.mainApp.status == .requiresApproval { SMAppService.openSystemSettingsLoginItems() }

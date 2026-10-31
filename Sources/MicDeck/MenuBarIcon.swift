@@ -16,7 +16,7 @@ enum MenuBarIcon {
             return true
         }
         image.isTemplate = false   // keep the band's colour
-        image.accessibilityDescription = disconnected ? "OnAir for Mac: no microphone attached" : "OnAir for Mac"
+        image.accessibilityDescription = disconnected ? "MicDeck: no microphone attached" : "MicDeck"
         return image
     }
 

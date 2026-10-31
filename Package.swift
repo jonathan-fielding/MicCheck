@@ -2,10 +2,10 @@
 import PackageDescription
 
 let package = Package(
-    name: "OnAirMac",
+    name: "MicDeck",
     platforms: [.macOS(.v15)],
     products: [
-        .executable(name: "OnAir", targets: ["OnAir"]),
+        .executable(name: "MicDeck", targets: ["MicDeck"]),
         .executable(name: "ngmic", targets: ["ngmic"]),
     ],
     targets: [
@@ -15,7 +15,7 @@ let package = Package(
             .linkedFramework("CoreAudio"),
             .linkedFramework("CoreFoundation"),
         ]),
-        .executableTarget(name: "OnAir", dependencies: ["MicKit"]),
+        .executableTarget(name: "MicDeck", dependencies: ["MicKit"]),
         .executableTarget(name: "ngmic", dependencies: ["MicKit"]),
         .testTarget(name: "MicKitTests", dependencies: ["MicKit"]),
     ],

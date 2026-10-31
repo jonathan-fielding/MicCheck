@@ -8,7 +8,7 @@ public final class QuadCastSLightController: @unchecked Sendable {
     /// May be called on a background queue.
     public var onError: ((String?) -> Void)?
 
-    private let queue = DispatchQueue(label: "com.onair.quadcast-lighting", qos: .default)
+    private let queue = DispatchQueue(label: "com.jonathanfielding.micdeck.lighting", qos: .default)
     private var lastErrorMessage: String?
     private var streaming = false
     private var streamingColors: (top: LEDColor, bottom: LEDColor)?

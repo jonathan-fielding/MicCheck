@@ -42,7 +42,7 @@ private struct HeaderBar: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Text("OnAir").font(.system(size: 17, weight: .heavy)).tracking(0.5)
+            Text("MicDeck").font(.system(size: 17, weight: .heavy)).tracking(0.5)
             + Text(" for Mac").font(.system(size: 17, weight: .regular)).foregroundColor(Theme.textSecondary)
             Spacer()
             if !c.devices.isEmpty {
@@ -104,12 +104,12 @@ private struct MixerCard: View {
         Card("Mixer") {
             HStack(alignment: .top, spacing: 10) {
                 if c.features.contains(.gain) || c.features.contains(.mute) {
-                    ChannelStrip(title: "Mic", systemImage: "mic.fill", accent: Theme.mic,
+                    ChannelStrip(title: "Mic", systemImage: "mic.fill", accent: Theme.mic, width: stripWidth,
                                  valueText: c.features.contains(.gain) ? "\(Int((c.gain * 100).rounded()))%" : "—") {
                         HStack(alignment: .bottom, spacing: 8) {
                             if c.features.contains(.gain) {
                                 VerticalFader(value: $c.gain, accent: c.muted ? Theme.textTertiary : Theme.mic,
-                                              onChange: c.gainChanged)
+                                              label: "Microphone gain", onChange: c.gainChanged)
                             } else {
                                 Spacer()
                             }
@@ -127,7 +127,7 @@ private struct MixerCard: View {
                     ChannelStrip(title: "Headphones", systemImage: "headphones", accent: Theme.headphones,
                                  valueText: "\(Int((c.headphoneVolume * 100).rounded()))%") {
                         VerticalFader(value: $c.headphoneVolume, accent: Theme.headphones,
-                                      onChange: c.headphoneVolumeChanged)
+                                      label: "Headphone volume", onChange: c.headphoneVolumeChanged)
                     } footer: { EmptyView() }
                 }
                 if c.features.contains(.monitoringMix) {
@@ -139,7 +139,9 @@ private struct MixerCard: View {
                             Text("PLAYBACK").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.textTertiary)
                             VerticalFader(value: $c.monitoringMix,
                                           range: Double(range.lowerBound)...Double(range.upperBound), step: 1,
-                                          accent: Theme.mix, resetValue: center, onChange: c.monitoringMixChanged)
+                                          accent: Theme.mix, resetValue: center, label: "Monitor mix",
+                                          valueText: mixLabel(c.monitoringMix, center: center),
+                                          onChange: c.monitoringMixChanged)
                             Text("MIC").font(.system(size: 9, weight: .bold)).foregroundStyle(Theme.textTertiary)
                         }
                     } footer: { EmptyView() }
@@ -157,16 +159,20 @@ private struct MixerCard: View {
             .fixedSize(horizontal: false, vertical: true)
             .layoutPriority(1)
         }
-        .frame(width: CGFloat(stripCount) * 112 + CGFloat(stripCount - 1) * 10 + 36)
+        .frame(width: CGFloat(stripCount) * stripWidth + CGFloat(stripCount - 1) * 10 + 36)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
+    /// The card is as wide as the strips it shows; the cards on the right take the rest.
     private var stripCount: Int {
         let f = c.features
         let n = (f.contains(.gain) || f.contains(.mute) ? 1 : 0) + (f.contains(.headphoneVolume) ? 1 : 0)
             + (f.contains(.monitoringMix) ? 1 : 0)
-        return max(n, 2)
+        return max(n, 1)
     }
+
+    /// A lone Mic strip (no headphone jack or monitor mix) is wider, so the card doesn't look cramped.
+    private var stripWidth: CGFloat { stripCount == 1 ? 160 : ChannelStrip<EmptyView, EmptyView>.defaultWidth }
 
     private func mixLabel(_ v: Double, center: Double) -> String {
         let d = Int(v - center)
@@ -179,12 +185,16 @@ private struct ChannelStrip<Body: View, Footer: View>: View {
     let systemImage: String
     let accent: Color
     let valueText: String
+    var width: CGFloat
     @ViewBuilder var content: Body
     @ViewBuilder var footer: Footer
 
-    init(title: String, systemImage: String, accent: Color, valueText: String,
+    static var defaultWidth: CGFloat { 112 }
+
+    init(title: String, systemImage: String, accent: Color, width: CGFloat = defaultWidth, valueText: String,
          @ViewBuilder content: () -> Body, @ViewBuilder footer: () -> Footer) {
-        self.title = title; self.systemImage = systemImage; self.accent = accent; self.valueText = valueText
+        self.title = title; self.systemImage = systemImage; self.accent = accent; self.width = width
+        self.valueText = valueText
         self.content = content(); self.footer = footer()
     }
 
@@ -202,7 +212,7 @@ private struct ChannelStrip<Body: View, Footer: View>: View {
             footer
         }
         .padding(.vertical, 14).padding(.horizontal, 12)
-        .frame(width: 112)
+        .frame(width: width)
         .frame(maxHeight: .infinity)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Theme.raised.opacity(0.6)))
         .overlay(alignment: .top) {
@@ -242,6 +252,7 @@ private struct PolarPatternCard: View {
                             .strokeBorder(on ? Theme.mic.opacity(0.7) : Theme.stroke))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
         }
@@ -295,7 +306,7 @@ private struct LightingCard: View {
 
     var body: some View {
         Card("Lighting", trailing: AnyView(
-            Toggle("", isOn: Binding(get: { c.lightingEnabled }, set: { c.setLightingEnabled($0) }))
+            Toggle("Lighting", isOn: Binding(get: { c.lightingEnabled }, set: { c.setLightingEnabled($0) }))
                 .toggleStyle(.switch).tint(Theme.mic).labelsHidden().controlSize(.small)
                 .disabled(!c.lightingAvailable)
         )) {
@@ -303,6 +314,7 @@ private struct LightingCard: View {
                 CapsulePreview(top: c.topColor, bottom: c.linkColors ? c.topColor : c.bottomColor,
                                brightness: c.brightness, on: c.lightingEnabled)
                     .frame(width: 54, height: 112)
+                    .accessibilityHidden(true)
 
                 VStack(alignment: .leading, spacing: 12) {
                     HStack(spacing: 10) {
@@ -324,11 +336,12 @@ private struct LightingCard: View {
                                     .overlay(Circle().strokeBorder(Color.white.opacity(0.2)))
                             }
                             .buttonStyle(.plain)
+                            .accessibilityLabel("Colour preset \(i + 1)")
                         }
                     }
                     HStack(spacing: 8) {
                         Image(systemName: "sun.min").font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
-                        ThinSlider(value: $c.brightness, accent: Theme.mic, onChange: c.lightingChanged)
+                        ThinSlider(value: $c.brightness, accent: Theme.mic, label: "Brightness", onChange: c.lightingChanged)
                         Image(systemName: "sun.max.fill").font(.system(size: 11)).foregroundStyle(Theme.textSecondary)
                     }
                     ChipToggle(title: "Same colour", systemImage: "link", isOn: $c.linkColors,
@@ -346,7 +359,7 @@ private struct LightingCard: View {
                     Text(status)
                 }
                 HStack(alignment: .firstTextBaseline) {
-                    Text("Colours stay while OnAir runs in the menu bar.")
+                    Text("Colours stay while MicDeck runs in the menu bar.")
                     Spacer()
                     Button("Save to mic (experimental)") { c.saveLighting() }
                         .buttonStyle(.plain).foregroundStyle(Theme.textSecondary).underline()

@@ -8,6 +8,9 @@ struct VerticalFader: View {
     var step: Double? = nil
     var accent: Color
     var resetValue: Double? = nil
+    /// VoiceOver label and spoken value (defaults to a percentage).
+    var label: String = ""
+    var valueText: String? = nil
     var onChange: () -> Void = {}
 
     private let capHeight: CGFloat = 16
@@ -54,6 +57,17 @@ struct VerticalFader: View {
             })
             .onTapGesture(count: 2) { if let r = resetValue { set(r) } }
         }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityValue(valueText ?? "\(Int(((value - range.lowerBound) / (range.upperBound - range.lowerBound) * 100).rounded())) percent")
+        .accessibilityAdjustableAction { direction in
+            let delta = step ?? (range.upperBound - range.lowerBound) / 20
+            switch direction {
+            case .increment: set(value + delta)
+            case .decrement: set(value - delta)
+            @unknown default: break
+            }
+        }
     }
 
     private func set(_ v: Double) {
@@ -88,6 +102,9 @@ struct LevelMeterView: View {
             }
         }
         .frame(width: 8)
+        .accessibilityElement()
+        .accessibilityLabel("Input level")
+        .accessibilityValue(dimmed ? "Unavailable" : "\(Int((level * 100).rounded())) percent")
         .saturation(dimmed ? 0 : 1)
         .opacity(dimmed ? 0.5 : 1)
         .animation(.linear(duration: 0.06), value: level)
@@ -120,6 +137,8 @@ struct MuteButton: View {
             .shadow(color: muted ? Theme.muteRed.opacity(0.5) : .clear, radius: 10)
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Mute microphone")
+        .accessibilityAddTraits(muted ? .isSelected : [])
         .animation(.easeOut(duration: 0.15), value: muted)
     }
 }
@@ -146,6 +165,7 @@ struct ChipToggle: View {
             .overlay(Capsule().strokeBorder(isOn ? .clear : Theme.stroke))
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
         .animation(.easeOut(duration: 0.15), value: isOn)
     }
 }
@@ -154,6 +174,7 @@ struct ChipToggle: View {
 struct ThinSlider: View {
     @Binding var value: Double
     var accent: Color
+    var label: String = ""
     var onChange: () -> Void = {}
 
     var body: some View {
@@ -174,5 +195,17 @@ struct ThinSlider: View {
             })
         }
         .frame(height: 20)
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityValue("\(Int((value * 100).rounded())) percent")
+        .accessibilityAdjustableAction { direction in
+            let v: Double
+            switch direction {
+            case .increment: v = min(value + 0.05, 1)
+            case .decrement: v = max(value - 0.05, 0)
+            @unknown default: return
+            }
+            if v != value { value = v; onChange() }
+        }
     }
 }

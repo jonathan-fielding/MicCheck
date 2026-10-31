@@ -2,6 +2,7 @@ import CoreAudio
 import Foundation
 import MicKit
 import AppKit
+import os
 import SwiftUI
 
 @MainActor
@@ -25,6 +26,9 @@ final class MicController: ObservableObject {
     @Published var lightingStatus: String?
     @Published var lightingAvailable = false
     private var light: QuadCastSLightController?
+    /// Held while colours stream. With no window open, App Nap would otherwise throttle the
+    /// 50 ms keep-alive timer and the mic would fall back to its own colours.
+    private var streamingActivity: NSObjectProtocol?
 
     private let manager = HIDMicManager()
     private var levelObservation: PropertyObservation?
@@ -45,7 +49,10 @@ final class MicController: ObservableObject {
         loadLightingSettings()
         manager.onChange = { [weak self] _ in Task { @MainActor in self?.rediscover() } }
         AudioDevice.observeDeviceList { [weak self] in Task { @MainActor in self?.rediscover() } }
-        manager.start()
+        let hidResult = manager.start()
+        if hidResult != kIOReturnSuccess {
+            DebugLog.logger.error("HID manager open failed: \(String(format: "0x%08X", hidResult), privacy: .public)")
+        }
         rediscover()
     }
 
@@ -87,7 +94,7 @@ final class MicController: ObservableObject {
         // alongside the running app interleaves packets and can leave the lights stuck.
         if DebugSnapshot.isRequested { lightingAvailable = true; return }
         guard d.features.contains(.rgbLighting) else {
-            light?.stop(); light = nil; lightingAvailable = false; lightingEnabled = false; lightingStatus = nil
+            dropLighting(); lightingEnabled = false; lightingStatus = nil
             return
         }
         if light == nil, let t = LightingTransportFinder.find() {
@@ -115,7 +122,7 @@ final class MicController: ObservableObject {
     /// our handle is dead: drop it and look for the interface again.
     private func lightingSendFailed(_ message: String?) {
         guard let message else { return }
-        NSLog("OnAir lighting send failed: %@; reconnecting", message)
+        DebugLog.logger.error("Lighting send failed: \(message, privacy: .public); reconnecting")
         dropLighting()
         lightingStatus = "Lighting disconnected, reconnecting…"
         scheduleLightingReconnect()
@@ -126,6 +133,17 @@ final class MicController: ObservableObject {
         light?.stop()
         light = nil
         lightingAvailable = false
+        setStreamingActivity(false)
+    }
+
+    private func setStreamingActivity(_ on: Bool) {
+        if on, streamingActivity == nil {
+            streamingActivity = ProcessInfo.processInfo.beginActivity(
+                options: .userInitiatedAllowingIdleSystemSleep, reason: "Keeping the microphone's lighting colours active")
+        } else if !on, let activity = streamingActivity {
+            ProcessInfo.processInfo.endActivity(activity)
+            streamingActivity = nil
+        }
     }
 
     /// Retries after 2 s, backing off to every 10 s while the interface stays missing.
@@ -209,7 +227,8 @@ final class MicController: ObservableObject {
 
     /// Sends the current lighting state to the mic without touching saved settings.
     private func pushLighting() {
-        guard let light else { return }
+        guard let light else { setStreamingActivity(false); return }
+        setStreamingActivity(lightingEnabled)
         if lightingEnabled {
             let (top, bottom) = currentColors
             light.show(top: top, bottom: bottom)
