@@ -361,9 +361,12 @@ private struct LightingCard: View {
                 HStack(alignment: .firstTextBaseline) {
                     Text("Colours stay while MicDeck runs in the menu bar.")
                     Spacer()
+                    #if DEBUG
+                    // Hidden in release builds: the save sequence isn't reliable enough to ship.
                     Button("Save to mic (experimental)") { c.saveLighting() }
                         .buttonStyle(.plain).foregroundStyle(Theme.textSecondary).underline()
                         .disabled(!c.lightingEnabled || !c.lightingAvailable)
+                    #endif
                 }
             }
             .font(.system(size: 11)).foregroundStyle(Theme.textTertiary)
