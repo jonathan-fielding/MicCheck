@@ -11,7 +11,6 @@ let package = Package(
     targets: [
         .target(name: "MicKit", linkerSettings: [
             .linkedFramework("IOKit"),
-            .linkedFramework("IOUSBHost"),
             .linkedFramework("CoreAudio"),
             .linkedFramework("CoreFoundation"),
         ]),

@@ -37,7 +37,7 @@ When the kernel has bound an HID driver to the interface:
 - Pass the 64-byte payload (without a leading report-ID byte).
 - This is the standard HID path and is tried first.
 
-### Option B: Raw USB Class Request via IOUSBHost
+### Option B: Raw USB Class Request via IOUSBLib
 
 When no HID driver is bound (common on macOS), use a USB class control request:
 
@@ -55,6 +55,8 @@ Send the 64-byte payload as the request data.
 
 **Per-transfer timeout:** 1000 ms (1 second).
 
+**Sandboxed apps:** use the IOUSBLib plug-in (`IOCreatePlugInInterfaceForService` with `kIOUSBInterfaceUserClientTypeID`, then `USBInterfaceOpen` and `ControlRequestTO`), not the IOUSBHost framework. The App Sandbox's `com.apple.security.device.usb` entitlement only permits the `IOUSBDeviceUserClientV2` and `IOUSBInterfaceUserClientV3` user clients; IOUSBHost's `IOUSBHostInterface`/`IOUSBHostDevice` objects fail to open with `kIOReturnNotPermitted` or `kIOReturnInternalError` inside the sandbox, though they work outside it.
+
 ### Discovery on macOS
 
 Try Option A first, then Option B.
@@ -65,7 +67,7 @@ Try Option A first, then Option B.
 
 1. Match on the class name `IOUSBHostInterface` alone and iterate every service.
 2. For each service, read its `idVendor`, `idProduct` and `bInterfaceNumber` properties.
-3. Keep the first service whose VID:PID is in the table above and whose interface number is 0, and open it as an IOUSBHost interface.
+3. Keep the first service whose VID:PID is in the table above and whose interface number is 0, and open it through IOUSBLib (see above).
 
 If neither path succeeds, report why (for example "no matching interface present", or the open error per candidate) so the user interface can show it.
 

@@ -122,7 +122,8 @@ public enum LightingTransportFinder {
             do {
                 return try RawUSBLighting(service: service, vid: vid, pid: pid)
             } catch {
-                errors.append(String(format: "%04x:%04x interface 0: ", vid, pid) + error.localizedDescription)
+                let ns = error as NSError
+                errors.append(String(format: "%04x:%04x interface 0: ", vid, pid) + "\(ns.localizedDescription) (\(ns.domain) \(ns.code))")
             }
         }
 
