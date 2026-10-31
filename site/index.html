@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MicDeck for Mac</title>
+<meta name="description" content="MicDeck controls HyperX USB microphones on macOS: gain, mute, headphones, polar pattern, low cut, QuadCast S lighting, and a voice optimiser that tunes EQ and compression for your voice.">
+<meta property="og:title" content="MicDeck for Mac">
+<meta property="og:description" content="Control your HyperX mic on macOS, and tune it to your voice.">
+<meta property="og:image" content="https://jonathan-fielding.github.io/MicCheck/images/mixer.png">
+<meta name="theme-color" content="#111216">
+<link rel="icon" type="image/png" href="images/favicon.png">
+<style>
+  :root {
+    --bg: #111216;
+    --panel: #1A1C22;
+    --raised: #23252D;
+    --stroke: rgba(255, 255, 255, 0.07);
+    --text: rgba(255, 255, 255, 0.92);
+    --text-2: rgba(255, 255, 255, 0.55);
+    --text-3: rgba(255, 255, 255, 0.32);
+    --mic: #FF2E94;
+    --headphones: #33CCFF;
+    --mix: #8F5CFF;
+    --live: #40DB78;
+    --radius: 18px;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  img { max-width: 100%; height: auto; display: block; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+  /* Section labels, like the app's card titles */
+  .label {
+    font-size: 12px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--text-2); font-stretch: expanded; margin: 0 0 14px;
+  }
+
+  /* Header */
+  header { padding: 20px 0; }
+  header .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-size: 19px; }
+  .brand img { width: 32px; height: 32px; }
+  .brand b { font-weight: 700; }
+  .brand span { color: var(--text-2); }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px; padding: 7px 14px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--stroke); color: var(--text-2);
+    font-size: 14px; text-decoration: none; white-space: nowrap;
+  }
+  .pill:hover { color: var(--text); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--live); box-shadow: 0 0 8px var(--live); }
+
+  /* Hero */
+  .hero { padding-top: 56px; padding-bottom: 40px; text-align: center; }
+  .hero img.icon { width: 128px; height: 128px; margin: 0 auto 24px; filter: drop-shadow(0 18px 40px rgba(143, 92, 255, 0.35)); }
+  h1 { font-size: clamp(36px, 6vw, 60px); line-height: 1.05; letter-spacing: -0.02em; margin: 0 0 18px; font-weight: 700; }
+  h1 em { font-style: normal; color: var(--mic); }
+  .lede { font-size: clamp(18px, 2.2vw, 21px); color: var(--text-2); max-width: 640px; margin: 0 auto 32px; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 10px; padding: 14px 24px; border-radius: 999px;
+    font-weight: 600; font-size: 17px; text-decoration: none; border: 1px solid transparent;
+  }
+  .btn.primary { background: var(--mic); color: #fff; box-shadow: 0 10px 30px rgba(255, 46, 148, 0.3); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.secondary { background: var(--panel); border-color: var(--stroke); color: var(--text); }
+  .btn.secondary:hover { background: var(--raised); }
+  .btn svg { width: 18px; height: 18px; }
+  .fine { color: var(--text-3); font-size: 14px; margin-top: 16px; }
+
+  /* Screenshots */
+  .shot {
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--stroke);
+    box-shadow: 0 40px 90px rgba(0, 0, 0, 0.55), 0 0 120px rgba(143, 92, 255, 0.12);
+  }
+  .showcase { padding-top: 16px; padding-bottom: 72px; }
+
+  /* Cards */
+  .card {
+    background: var(--panel); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 22px;
+  }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(3, 1fr); }
+  .card h3 { margin: 14px 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--text-2); font-size: 15px; }
+  .chip {
+    width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center;
+  }
+  .chip svg { width: 22px; height: 22px; }
+  .chip.mic { background: rgba(255, 46, 148, 0.16); color: var(--mic); }
+  .chip.hp { background: rgba(51, 204, 255, 0.14); color: var(--headphones); }
+  .chip.mix { background: rgba(143, 92, 255, 0.16); color: var(--mix); }
+  .chip.live { background: rgba(64, 219, 120, 0.14); color: var(--live); }
+  section.wrap { padding-top: 64px; padding-bottom: 64px; }
+  h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1; letter-spacing: -0.015em; margin: 0 0 14px; }
+  .section-lede { color: var(--text-2); max-width: 620px; margin: 0 0 32px; font-size: 18px; }
+
+  /* Voice split */
+  .split { display: grid; grid-template-columns: 1fr 1.25fr; gap: 40px; align-items: center; }
+  .steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  .steps li { display: flex; gap: 14px; align-items: flex-start; }
+  .steps .n {
+    flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--raised); border: 1px solid var(--stroke);
+    display: grid; place-items: center; font-size: 13px; font-weight: 700; color: var(--mic);
+  }
+  .steps b { display: block; }
+  .steps span { color: var(--text-2); font-size: 15px; }
+  .chain { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 24px; }
+  .chain span {
+    font-size: 13px; padding: 5px 11px; border-radius: 999px; background: var(--raised); border: 1px solid var(--stroke); color: var(--text-2);
+  }
+
+  /* Mic table */
+  .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--stroke); background: var(--panel); }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 620px; }
+  th, td { padding: 13px 16px; text-align: center; border-bottom: 1px solid var(--stroke); }
+  th:first-child, td:first-child { text-align: left; white-space: nowrap; }
+  thead th { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-2); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td.y::before { content: ""; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--mic); }
+  td.n::before { content: "–"; color: var(--text-3); }
+  .hint { color: var(--text-3); font-size: 14px; margin-top: 12px; }
+
+  /* Download */
+  .downloads { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .downloads .card { display: flex; flex-direction: column; gap: 12px; }
+  .downloads .card p { flex: 1; }
+  .downloads .btn { align-self: flex-start; }
+  code { font: 14px ui-monospace, "SF Mono", Menlo, monospace; background: var(--raised); padding: 2px 6px; border-radius: 6px; }
+
+  footer { border-top: 1px solid var(--stroke); padding: 32px 0 48px; color: var(--text-3); font-size: 14px; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; justify-content: space-between; }
+  footer a { color: var(--text-2); }
+
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .split { grid-template-columns: 1fr; gap: 28px; }
+    .downloads { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) {
+    .grid { grid-template-columns: 1fr; }
+    header .pill span.long { display: none; }
+    .hero { padding-top: 32px; }
+    .btn { width: 100%; justify-content: center; }
+    .downloads .btn { align-self: stretch; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <a class="brand" href="./"><img src="images/favicon.png" alt=""><b>MicDeck</b><span>for Mac</span></a>
+    <a class="pill" href="https://github.com/jonathan-fielding/MicCheck"><span class="dot"></span><span class="long">Open source on</span> GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="hero wrap">
+    <img class="icon" src="images/icon.png" alt="MicDeck app icon" width="128" height="128">
+    <h1>Your HyperX mic,<br><em>properly on the Mac.</em></h1>
+    <p class="lede">MicDeck gives HyperX USB microphones the controls macOS leaves out: gain, mute, headphone level, polar pattern, low cut and QuadCast&nbsp;S lighting. It also tunes your voice in about fifteen seconds.</p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/jonathan-fielding/MicCheck/releases/latest">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12m0 0-5-5m5 5 5-5M5 20h14"/></svg>
+        Download for Mac
+      </a>
+      <a class="btn secondary" href="https://github.com/jonathan-fielding/MicCheck">View source</a>
+    </div>
+    <p class="fine">Free and open source · macOS 15 or later · Apple silicon and Intel · Coming soon to the Mac App Store</p>
+  </div>
+
+  <div class="showcase wrap">
+    <div class="shot"><img src="images/mixer.png" width="2000" height="1416" alt="MicDeck's main window: a mixer with mic gain and headphone faders, a device card, QuadCast S lighting controls with top and bottom colours, and a Voice card with an Optimise voice button."></div>
+  </div>
+
+  <section class="wrap" id="features">
+    <p class="label">What it does</p>
+    <h2>Everything on the mic, from your menu bar.</h2>
+    <p class="section-lede">MicDeck sits in the menu bar and only shows the controls your mic actually has. Change the mic and the window changes with it.</p>
+    <div class="grid">
+      <div class="card">
+        <div class="chip mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <h3>Gain and mute</h3>
+        <p>A proper fader with a live level meter, and one-click mute. On newer mics it follows the mic's own knob and tap-to-mute.</p>
+      </div>
+      <div class="card">
+        <div class="chip hp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3" y="14" width="4" height="6" rx="1.5"/><rect x="17" y="14" width="4" height="6" rx="1.5"/></svg></div>
+        <h3>Headphones and monitoring</h3>
+        <p>Set headphone volume, and on mics that support it, the balance between hearing yourself and hearing your Mac.</p>
+      </div>
+      <div class="card">
+        <div class="chip mix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 12c-4-6-8-4-8 0s4 6 8 0c4-6 8-4 8 0s-4 6-8 0Z"/></svg></div>
+        <h3>Polar pattern</h3>
+        <p>Switch between cardioid, stereo, omni and bidirectional on the QuadCast&nbsp;2&nbsp;S without reaching for the knob.</p>
+      </div>
+      <div class="card">
+        <div class="chip live"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 18c4 0 5-12 9-12s5 12 9 12"/><path d="M3 6h4"/></svg></div>
+        <h3>Low cut</h3>
+        <p>Turn on the mic's built-in high-pass filter to take out desk thumps, fans and rumble.</p>
+      </div>
+      <div class="card">
+        <div class="chip mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></div>
+        <h3>QuadCast S lighting</h3>
+        <p>Pick separate top and bottom colours and brightness. Your colours stay on for as long as MicDeck is in the menu bar.</p>
+      </div>
+      <div class="card">
+        <div class="chip hp"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></div>
+        <h3>Voice optimiser</h3>
+        <p>Record a short test and MicDeck sets EQ, compression and noise reduction for your voice. Every app can use the result.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="voice">
+    <div class="split">
+      <div>
+        <p class="label">Optimise voice</p>
+        <h2>Sound like you, only better.</h2>
+        <p class="section-lede">Read one sentence and MicDeck listens for pops, harsh S sounds, mud, room noise and peaks, then builds a voice chain for you. It explains each choice, and you can A/B the result before you apply it.</p>
+        <ol class="steps">
+          <li><span class="n">1</span><div><b>Stay quiet for 3 seconds</b><span>So it can hear your room.</span></div></li>
+          <li><span class="n">2</span><div><b>Read the sentence</b><span>At your normal speaking volume.</span></div></li>
+          <li><span class="n">3</span><div><b>Say "Okay, let's go!"</b><span>The way you would on stream, so the limiter is set from a real peak.</span></div></li>
+          <li><span class="n">4</span><div><b>Pick "MicDeck Microphone"</b><span>In Discord, Zoom, OBS or any other app.</span></div></li>
+        </ol>
+        <div class="chain" aria-label="Voice chain">
+          <span>High-pass</span><span>Noise gate</span><span>5-band EQ</span><span>De-esser</span><span>Compressor</span><span>Limiter</span>
+        </div>
+      </div>
+      <div class="shot"><img src="images/optimise-voice.png" width="2000" height="1456" alt="The Optimise voice window: three steps (stay quiet, read the sentence, then say it loud), the test sentence, and a Start recording button." loading="lazy"></div>
+    </div>
+  </section>
+
+  <section class="wrap" id="mics">
+    <p class="label">Supported mics</p>
+    <h2>Works with HyperX USB mics.</h2>
+    <p class="section-lede">Every mic gets gain and mute. The other controls appear when the mic has them.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Mic</th><th>Gain &amp; mute</th><th>Headphones</th><th>Polar pattern</th><th>Monitor mix</th><th>Low cut</th><th>Lighting</th></tr></thead>
+        <tbody>
+          <tr><td>QuadCast 2 S</td><td class="y"></td><td class="y"></td><td class="y"></td><td class="y"></td><td class="n"></td><td class="n"></td></tr>
+          <tr><td>QuadCast S</td><td class="y"></td><td class="y"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="y"></td></tr>
+          <tr><td>QuadCast</td><td class="y"></td><td class="y"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
+          <tr><td>SoloCast 2 Pro</td><td class="y"></td><td class="y"></td><td class="n"></td><td class="n"></td><td class="y"></td><td class="n"></td></tr>
+          <tr><td>SoloCast 2</td><td class="y"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="y"></td><td class="n"></td></tr>
+          <tr><td>SoloCast</td><td class="y"></td><td class="y"></td><td class="n"></td><td class="n"></td><td class="n"></td><td class="n"></td></tr>
+          <tr><td>FlipCast</td><td class="y"></td><td class="y"></td><td class="n"></td><td class="n"></td><td class="y"></td><td class="n"></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="hint">The voice optimiser works with all of them.</p>
+  </section>
+
+  <section class="wrap" id="download">
+    <p class="label">Download</p>
+    <h2>Get MicDeck.</h2>
+    <p class="section-lede">Both downloads are on the GitHub releases page.</p>
+    <div class="downloads">
+      <div class="card">
+        <div class="chip mic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></div>
+        <h3>MicDeck</h3>
+        <p>The app. Open the disk image and drag MicDeck to Applications. It starts in the menu bar.</p>
+        <a class="btn primary" href="https://github.com/jonathan-fielding/MicCheck/releases/latest">Download MicDeck</a>
+      </div>
+      <div class="card">
+        <div class="chip mix"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/></svg></div>
+        <h3>MicDeck Audio driver</h3>
+        <p>Only needed for the voice optimiser. It adds the "MicDeck Microphone" input that other apps record from. To remove it later, run <code>uninstall.sh</code> from the disk image.</p>
+        <a class="btn secondary" href="https://github.com/jonathan-fielding/MicCheck/releases/latest">Download the driver</a>
+      </div>
+    </div>
+  </section>
+
+  <section class="wrap" id="privacy">
+    <p class="label">Privacy</p>
+    <h2>Your voice stays on your Mac.</h2>
+    <p class="section-lede" style="margin-bottom:0">MicDeck collects no data and makes no network connections. Microphone access drives the level meter and the voice optimiser. The test recording is kept in memory while you tune and is never saved or sent anywhere.</p>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 Jonathan Fielding · <a href="https://github.com/jonathan-fielding/MicCheck/blob/main/LICENSE">MIT licence</a></span>
+    <span>MicDeck is an independent project and isn't affiliated with or endorsed by HP Inc. or HyperX. HyperX, QuadCast, SoloCast and FlipCast are trademarks of their owners.</span>
+  </div>
+</footer>
+
+</body>
+</html>

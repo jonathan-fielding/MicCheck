@@ -3,6 +3,11 @@
 #
 #   ./build-app.sh              local build: native arch, ad-hoc signed, sandboxed
 #   ./build-app.sh --appstore   Mac App Store build: universal, distribution-signed, dist/MicDeck.pkg
+#   ./build-app.sh --dmg        direct download: universal, Developer ID signed, notarized dist/MicDeck.dmg
+#
+# --dmg needs:
+#   DEVELOPER_ID_IDENTITY    e.g. "Developer ID Application: Jonathan Fielding (TEAMID)"
+#   NOTARY_PROFILE           a keychain profile made with `xcrun notarytool store-credentials`
 #
 # --appstore needs:
 #   TEAM_ID                  your 10-character Apple Developer Team ID
@@ -18,6 +23,7 @@ cd "$(dirname "$0")"
 
 MODE=dev
 [[ "${1:-}" == "--appstore" ]] && MODE=appstore
+[[ "${1:-}" == "--dmg" ]] && MODE=dmg
 
 BUNDLE_ID=com.jonathanfielding.micdeck
 MARKETING_VERSION=${MARKETING_VERSION:-1.0.0}
@@ -30,6 +36,10 @@ if [[ $MODE == appstore ]]; then
     APP_SIGN_IDENTITY=${APP_SIGN_IDENTITY:-Apple Distribution}
     INSTALLER_SIGN_IDENTITY=${INSTALLER_SIGN_IDENTITY:-3rd Party Mac Developer Installer}
     ARCH_FLAGS=(--arch arm64 --arch x86_64)   # macOS 15 still runs on Intel Macs
+elif [[ $MODE == dmg ]]; then
+    : "${DEVELOPER_ID_IDENTITY:?set DEVELOPER_ID_IDENTITY to your Developer ID Application identity}"
+    : "${NOTARY_PROFILE:?set NOTARY_PROFILE to a notarytool keychain profile}"
+    ARCH_FLAGS=(--arch arm64 --arch x86_64)
 else
     ARCH_FLAGS=()
 fi
@@ -62,6 +72,16 @@ if [[ $MODE == dev ]]; then
     codesign --force --sign - --options runtime --entitlements Resources/MicDeck.entitlements "$APP"
     codesign --force --sign - --options runtime dist/ngmic
     echo "Built: $APP ($MARKETING_VERSION build $BUILD_NUMBER) and dist/ngmic"
+    exit 0
+fi
+
+if [[ $MODE == dmg ]]; then
+    # Same sandboxed entitlements as the store build; Developer ID apps don't embed a profile.
+    codesign --force --timestamp --options runtime --entitlements Resources/MicDeck.entitlements \
+        --sign "$DEVELOPER_ID_IDENTITY" "$APP"
+    codesign --verify --strict --deep --verbose=2 "$APP"
+    Tools/make-dmg.sh dist/MicDeck.dmg "MicDeck" "$DEVELOPER_ID_IDENTITY" "$NOTARY_PROFILE" "$APP" --applications
+    echo "Built: dist/MicDeck.dmg ($MARKETING_VERSION build $BUILD_NUMBER), signed and notarized."
     exit 0
 fi
 

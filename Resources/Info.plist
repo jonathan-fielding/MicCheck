@@ -18,7 +18,7 @@
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
   <key>NSHumanReadableCopyright</key><string>© 2026 Jonathan Fielding</string>
-  <key>NSMicrophoneUsageDescription</key><string>Shows your microphone's live input level in the mixer. Audio is never recorded or sent anywhere.</string>
+  <key>NSMicrophoneUsageDescription</key><string>Shows your microphone's live input level, and records a short test for the voice optimiser. Audio stays on your Mac and is never saved or sent anywhere.</string>
   <key>ITSAppUsesNonExemptEncryption</key><false/>
 </dict>
 </plist>

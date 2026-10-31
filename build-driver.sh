@@ -3,7 +3,8 @@
 #
 #   ./build-driver.sh              local build: universal, ad-hoc signed, unsigned dist/MicDeckAudio.pkg
 #   ./build-driver.sh --install    local build, then installs it (asks for your password)
-#   ./build-driver.sh --release    Developer ID signed and notarized dist/MicDeckAudio.pkg
+#   ./build-driver.sh --release    Developer ID signed and notarized dist/MicDeckAudio.pkg,
+#                                  plus dist/MicDeckAudio.dmg (pkg + uninstall.sh) for GitHub releases
 #
 # The driver can't ship inside the Mac App Store app (a sandboxed app can't install into
 # /Library/Audio/Plug-Ins/HAL), so it's a separate download that MicDeck links to.
@@ -47,7 +48,10 @@ if [[ $MODE == release ]]; then
     pkgbuild $PKG_ARGS --sign "$INSTALLER_SIGN_IDENTITY" "$PKG"
     xcrun notarytool submit "$PKG" --keychain-profile "$NOTARY_PROFILE" --wait
     xcrun stapler staple "$PKG"
-    echo "Built: $PKG ($MARKETING_VERSION build $BUILD_NUMBER), signed and notarized."
+    # The download: the installer plus the uninstaller, in one notarized disk image.
+    Tools/make-dmg.sh dist/MicDeckAudio.dmg "MicDeck Audio" "$DRIVER_SIGN_IDENTITY" "$NOTARY_PROFILE" \
+        "$PKG" Driver/uninstall.sh
+    echo "Built: $PKG and dist/MicDeckAudio.dmg ($MARKETING_VERSION build $BUILD_NUMBER), signed and notarized."
     exit 0
 fi
 
