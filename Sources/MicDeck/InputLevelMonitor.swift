@@ -1,6 +1,7 @@
 import AVFoundation
 import CoreAudio
 import Foundation
+import MicKit
 import os
 
 /// Live input meter for the selected mic. Runs only while the settings window is
@@ -21,6 +22,8 @@ final class InputLevelMonitor: ObservableObject {
     private var peakHeldAt = Date.distantPast
     private let ioQueue = DispatchQueue(label: "InputLevelMonitor.io")
 
+    /// Called after the user answers the microphone permission prompt.
+    var onPermissionAnswered: (() -> Void)?
     func start(deviceID: AudioDeviceID?) {
         guard let deviceID else { stop(); unavailableReason = nil; return }
         if procID != nil, self.deviceID == deviceID { return }
@@ -37,6 +40,7 @@ final class InputLevelMonitor: ObservableObject {
             AVCaptureDevice.requestAccess(for: .audio) { ok in
                 Task { @MainActor in
                     DebugLog.write("meter access granted=\(ok)")
+                    self.onPermissionAnswered?()
                     guard self.deviceID == deviceID else { return }
                     if ok { self.run(deviceID) } else { self.unavailableReason = "Microphone access denied" }
                 }
@@ -58,7 +62,7 @@ final class InputLevelMonitor: ObservableObject {
     }
 
     private func run(_ deviceID: AudioDeviceID) {
-        guard Self.inputIsFloat32(deviceID) else {
+        guard AudioHAL.streamsAreFloat32(deviceID, scope: kAudioDevicePropertyScopeInput) else {
             DebugLog.write("meter input format is not Float32")
             unavailableReason = "This mic's input format can't be metered"
             return
@@ -97,26 +101,6 @@ final class InputLevelMonitor: ObservableObject {
         procID = proc
         unavailableReason = nil
         DebugLog.write("meter running")
-    }
-
-    /// The IOProc reads every input buffer as Float32; true when each input stream delivers that.
-    private static func inputIsFloat32(_ deviceID: AudioDeviceID) -> Bool {
-        var addr = AudioObjectPropertyAddress(mSelector: kAudioDevicePropertyStreams, mScope: kAudioDevicePropertyScopeInput,
-                                              mElement: kAudioObjectPropertyElementMain)
-        var size: UInt32 = 0
-        guard AudioObjectGetPropertyDataSize(deviceID, &addr, 0, nil, &size) == noErr, size > 0 else { return false }
-        var streams = [AudioStreamID](repeating: 0, count: Int(size) / MemoryLayout<AudioStreamID>.size)
-        guard AudioObjectGetPropertyData(deviceID, &addr, 0, nil, &size, &streams) == noErr else { return false }
-        for stream in streams.prefix(Int(size) / MemoryLayout<AudioStreamID>.size) {
-            var formatAddr = AudioObjectPropertyAddress(mSelector: kAudioStreamPropertyVirtualFormat, mScope: kAudioObjectPropertyScopeGlobal,
-                                                        mElement: kAudioObjectPropertyElementMain)
-            var format = AudioStreamBasicDescription()
-            var formatSize = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
-            guard AudioObjectGetPropertyData(stream, &formatAddr, 0, nil, &formatSize, &format) == noErr,
-                  format.mFormatID == kAudioFormatLinearPCM, format.mFormatFlags & kAudioFormatFlagIsFloat != 0,
-                  format.mBitsPerChannel == 32 else { return false }
-        }
-        return true
     }
 
     private func push(_ v: Float) {

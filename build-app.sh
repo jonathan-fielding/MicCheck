@@ -11,7 +11,8 @@
 #   APP_SIGN_IDENTITY        default "Apple Distribution"
 #   INSTALLER_SIGN_IDENTITY  default "3rd Party Mac Developer Installer"
 #
-# Both modes take MARKETING_VERSION (default 1.0.0) and BUILD_NUMBER (default: commit count).
+# Both modes take MARKETING_VERSION (default 1.0.0) and BUILD_NUMBER (default: commit count),
+# and DRIVER_DOWNLOAD_URL: the page where users get the MicDeck Audio driver (see build-driver.sh).
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -50,6 +51,11 @@ cp Resources/Info.plist "$PLIST"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier $BUNDLE_ID" \
     -c "Set :CFBundleShortVersionString $MARKETING_VERSION" \
     -c "Set :CFBundleVersion $BUILD_NUMBER" "$PLIST"
+# Where "Optimise voice" sends people to get the MicDeck Audio driver (./build-driver.sh --release).
+# Without it, the install step shows build instructions instead of a download button.
+if [[ -n "${DRIVER_DOWNLOAD_URL:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Add :MicDeckAudioDriverURL string $DRIVER_DOWNLOAD_URL" "$PLIST"
+fi
 
 if [[ $MODE == dev ]]; then
     # Hardened runtime: no DYLD_* injection into a process that holds the Microphone grant.

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Restart Core Audio so it loads the new driver. Apps using audio reconnect on their own.
+launchctl kickstart -k system/com.apple.audio.coreaudiod 2>/dev/null || killall coreaudiod 2>/dev/null
+exit 0

@@ -23,7 +23,12 @@ enum DebugSnapshot {
             .split(separator: "x").compactMap { Double($0) }
         let (w, h) = dims.count == 2 ? (dims[0], dims[1]) : (800, 600)
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            let view = NSHostingView(rootView: ContentView().environmentObject(controller).frame(width: w, height: h))
+            // MICDECK_SNAPSHOT_VIEW=voice renders the optimiser window instead.
+            let root: AnyView = ProcessInfo.processInfo.environment["MICDECK_SNAPSHOT_VIEW"] == "voice"
+                ? AnyView(VoiceOptimiserView())
+                : AnyView(ContentView())
+            let view = NSHostingView(rootView: root.environmentObject(controller).environmentObject(controller.voice)
+                .frame(width: w, height: h))
             view.frame = NSRect(x: 0, y: 0, width: w, height: h)
             let window = NSWindow(contentRect: view.frame, styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
             window.titlebarAppearsTransparent = true

@@ -14,10 +14,11 @@ struct ContentView: View {
                 HStack(alignment: .top, spacing: 14) {
                     MixerCard(meter: meter)
                     VStack(spacing: 14) {
+                        DeviceInfoCard()
                         if c.features.contains(.polarPattern) { PolarPatternCard() }
                         if c.features.contains(.rgbLighting) { LightingCard() }
                         if c.features.contains(.lowCutFilter) { EffectsCard() }
-                        DeviceInfoCard()
+                        VoiceCard()
                         Spacer(minLength: 0)
                     }
                     .frame(minWidth: 320, maxWidth: .infinity)
@@ -29,9 +30,69 @@ struct ContentView: View {
         .background(Theme.background.ignoresSafeArea())
         .foregroundStyle(Theme.textPrimary)
         .environment(\.colorScheme, .dark)
-        .onAppear { meter.start(deviceID: c.current?.audio?.id) }
-        .onDisappear { meter.stop() }
-        .onChange(of: c.current?.audio?.id) { _, id in meter.start(deviceID: id) }
+        // Start the meter (which may show the microphone permission prompt) only once the window
+        // is on screen and focused. A prompt shown while the window is still opening stops it appearing.
+        .background(WindowKeyObserver { window in
+            windowReady = true
+            // When the prompt closes, macOS gives focus back to the app used before it, leaving this
+            // window behind. Bring it forward once that hand-back has happened.
+            meter.onPermissionAnswered = { [weak window] in
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    guard let window, window.isVisible else { return }
+                    NSApp.activate()
+                    window.orderFrontRegardless()
+                    window.makeKey()
+                }
+            }
+            meter.start(deviceID: c.current?.audio?.id)
+        })
+        .onDisappear {
+            windowReady = false
+            meter.stop()
+        }
+        .onChange(of: c.current?.audio?.id) { _, id in
+            if windowReady { meter.start(deviceID: id) }
+        }
+    }
+
+    @State private var windowReady = false
+}
+
+/// Calls `onReady` once its window is visible and key (and again each time it reopens).
+private struct WindowKeyObserver: NSViewRepresentable {
+    var onReady: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> ObserverView { ObserverView() }
+    func updateNSView(_ view: ObserverView, context: Context) { view.onReady = onReady }
+
+    final class ObserverView: NSView {
+        var onReady: ((NSWindow) -> Void)?
+        private var observer: NSObjectProtocol?
+        private var fired = false
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+            observer = nil
+            fired = false
+            guard let window else { return }
+            observer = NotificationCenter.default.addObserver(forName: NSWindow.didBecomeKeyNotification, object: window,
+                                                              queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.fireIfReady() }
+            }
+            // Already key (e.g. reopened while the app was active): wait a turn so it's drawn first.
+            DispatchQueue.main.async { [weak self] in self?.fireIfReady() }
+        }
+
+        private func fireIfReady() {
+            guard !fired, let window, window.isVisible, window.isKeyWindow else { return }
+            fired = true
+            onReady?(window)
+        }
+
+        deinit {
+            if let observer { NotificationCenter.default.removeObserver(observer) }
+        }
     }
 }
 

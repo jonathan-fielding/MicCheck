@@ -12,6 +12,9 @@
 //                                   QuadCast S colours (hex, e.g. ff0000); streams until Ctrl-C.
 //                                   Refuses while MicDeck runs unless --force.
 //   ngmic led off                       explains how lighting goes back to the mic's own colours
+//   ngmic analyse <audio file> [out.wav]
+//                                   voice analysis + suggested settings for a test recording
+//                                   (room tone first, then speech); optionally writes the processed audio
 
 import AppKit
 import CoreAudio
@@ -30,6 +33,12 @@ setvbuf(stdout, nil, _IOLBF, 0)   // line-buffered even when piped
 
 let args = Array(CommandLine.arguments.dropFirst())
 guard let verb = args.first else { usage() }
+
+if verb == "analyse" || verb == "analyze" {
+    guard args.count > 1 else { usage() }
+    analyse(path: args[1])
+    exit(0)
+}
 
 let manager = HIDMicManager()
 manager.start(runLoop: CFRunLoopGetCurrent())

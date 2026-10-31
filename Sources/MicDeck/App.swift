@@ -37,12 +37,25 @@ struct MicDeckApp: App {
         Window("MicDeck", id: "main") {
             ContentView()
                 .environmentObject(controller)
+                .environmentObject(controller.voice)
                 .frame(minWidth: 760, minHeight: 560)
         }
         .windowResizability(.contentMinSize)
         .windowStyle(.hiddenTitleBar)
         .defaultSize(width: 800, height: 600)
         .defaultLaunchBehavior(Self.isFirstLaunch ? .presented : .suppressed)
+
+        Window("Optimise Voice", id: "voice") {
+            VoiceOptimiserView()
+                .environmentObject(controller)
+                .environmentObject(controller.voice)
+                .frame(minWidth: 920, minHeight: 640)
+        }
+        .windowResizability(.contentMinSize)
+        .windowStyle(.hiddenTitleBar)
+        .defaultSize(width: 980, height: 700)
+        .defaultLaunchBehavior(.suppressed)
+        .restorationBehavior(.disabled)
 
         MenuBarExtra {
             MenuBarContent().environmentObject(controller)

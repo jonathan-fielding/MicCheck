@@ -30,6 +30,9 @@ final class MicController: ObservableObject {
     /// 50 ms keep-alive timer and the mic would fall back to its own colours.
     private var streamingActivity: NSObjectProtocol?
 
+    /// Voice optimiser settings and the live route to "MicDeck Microphone".
+    let voice = VoiceController()
+
     private let manager = HIDMicManager()
     private var levelObservation: PropertyObservation?
     /// What `attach()` last wired up. Compared on rediscovery so a mic that re-enumerates
@@ -60,6 +63,7 @@ final class MicController: ObservableObject {
         devices = MicDevice.discover(hidMics: manager.mics)
         if !devices.contains(where: { $0.id == selectedID }) { selectedID = devices.first?.id }
         if connectionKey(current) != attachedKey { attach() }
+        voice.refreshDriver()   // the driver's devices come and go with the device list
     }
 
     func select(_ id: String) {
@@ -75,6 +79,7 @@ final class MicController: ObservableObject {
 
     private func attach() {
         attachedKey = connectionKey(current)
+        voice.setSource(current)
         levelObservation = nil
         // Knob and tap-to-mute events from a mic that's no longer shown must not reach the UI.
         attachedHID?.onEvent = nil
@@ -309,5 +314,28 @@ final class MicController: ObservableObject {
     func lowCutChanged() {
         guard !applyingDeviceState else { return }
         current?.hid?.send(RealtekV7.setHighPassFilter(lowCut))
+    }
+
+    // MARK: voice optimiser
+
+    /// What the optimiser may suggest changing on the mic itself.
+    var hardwareState: MicHardwareState {
+        MicHardwareState(hasLowCut: features.contains(.lowCutFilter), lowCutOn: lowCut,
+                         hasPolarPattern: features.contains(.polarPattern), pattern: polarPattern,
+                         canAdjustGain: current?.audio?.canAdjustDecibels(kAudioDevicePropertyScopeInput) ?? false)
+    }
+
+    func perform(_ action: VoiceNote.Action) {
+        switch action {
+        case .adjustHardwareGain(let db):
+            current?.audio?.adjustVolume(byDecibels: db, kAudioDevicePropertyScopeInput)
+            refreshFromOS()
+        case .enableLowCut:
+            lowCut = true
+            lowCutChanged()
+        case .useCardioid:
+            polarPattern = .cardioid
+            polarPatternChanged()
+        }
     }
 }
