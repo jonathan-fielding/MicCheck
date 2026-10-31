@@ -1,0 +1,17 @@
+# SwiftPM / Xcode build output
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/
+
+# Built app and CLI (./build-app.sh)
+dist/
+Resources/AppIcon.iconset/
+
+.DS_Store
+
+# Vendor material from the reverse engineering lives outside this repo
+# (../extracted, ../HyperX_NGENUITY_Installer.exe); never add copies here.
+*.exe
+*.dll
+extracted/
